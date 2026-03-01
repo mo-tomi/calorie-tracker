@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カロリー早見表</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a22;
+    --surface2: #22222e;
+    --accent: #ff6b35;
+    --accent2: #4ecdc4;
+    --accent3: #ffe66d;
+    --text: #f0f0f0;
+    --muted: #777;
+    --border: #2a2a36;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    padding: 20px 16px 40px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 1rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+
+  .subtitle { color: var(--muted); font-size: 0.75rem; margin-bottom: 20px; }
+
+  /* 目標バー */
+  .target-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    position: sticky;
+    top: 8px;
+    z-index: 10;
+  }
+
+  .target-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 8px;
+  }
+
+  .target-label { font-size: 0.72rem; color: var(--muted); }
+
+  .target-total {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent3);
+    line-height: 1;
+  }
+
+  .target-goal { font-size: 0.72rem; color: var(--muted); }
+
+  .progress-bg {
+    background: var(--surface2);
+    border-radius: 99px;
+    height: 10px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    transition: width 0.4s ease;
+    max-width: 100%;
+  }
+
+  .progress-fill.over { background: linear-gradient(90deg, var(--accent2), #6bffb8); }
+
+  .target-status {
+    font-size: 0.72rem;
+    margin-top: 6px;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  /* セクション */
+  .section-title {
+    font-size: 0.68rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin: 20px 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* フードカード */
+  .food-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .food-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .food-item:active { transform: scale(0.98); }
+
+  .food-item.selected {
+    border-color: var(--accent2);
+    background: #1a2a28;
+  }
+
+  .food-name {
+    flex: 1;
+    font-size: 0.9rem;
+  }
+
+  .food-sub {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  .food-kcal {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--accent3);
+    white-space: nowrap;
+  }
+
+  .food-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+
+  .food-item.selected .food-check {
+    background: var(--accent2);
+    border-color: var(--accent2);
+  }
+
+  .food-check::after {
+    content: '';
+    width: 6px;
+    height: 10px;
+    border: 2px solid transparent;
+    border-right: 2px solid #0f0f13;
+    border-bottom: 2px solid #0f0f13;
+    transform: rotate(45deg) translate(-1px, -1px);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .food-item.selected .food-check::after { opacity: 1; }
+
+  /* 夜勤固定 */
+  .fixed-card {
+    background: #1a1f2e;
+    border: 1px solid #2a3450;
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+
+  .fixed-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .fixed-label { font-size: 0.85rem; color: #aaa; }
+  .fixed-kcal {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #6ba3ff;
+  }
+
+  .fixed-items {
+    margin-top: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .tag {
+    background: #222a3a;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 0.68rem;
+    color: #8899bb;
+  }
+
+  /* 主力メニュー横並び */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .main-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+    min-height: 90px;
+  }
+
+  .main-item:active { transform: scale(0.97); }
+
+  .main-item.selected {
+    border-color: var(--accent2);
+    background: #1a2a28;
+  }
+
+  .main-item .food-check {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+
+  .main-item.selected .food-check {
+    background: var(--accent2);
+    border-color: var(--accent2);
+  }
+
+  .main-kcal {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent3);
+    margin-top: 4px;
+  }
+
+  .main-name {
+    font-size: 0.82rem;
+    color: #ccc;
+    line-height: 1.4;
+  }
+
+  /* リセット */
+  .reset-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    padding: 8px 16px;
+    cursor: pointer;
+    display: block;
+    width: 100%;
+    margin-top: 24px;
+    font-family: 'Noto Sans JP', sans-serif;
+    transition: background 0.15s;
+  }
+
+  .reset-btn:hover { background: #25252f; }
+
+  .note {
+    margin-top: 16px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.7;
+    text-align: center;
+  }
+
+  /* タブ */
+  .tab-bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--muted);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tab-btn.active {
+    background: var(--surface2);
+    color: var(--text);
+    border-color: var(--accent2);
+  }
+
+  /* グラフタブ */
+  .graph-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .period-btn {
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--muted);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .period-btn.active {
+    background: var(--accent2);
+    color: #0f0f13;
+    border-color: var(--accent2);
+    font-weight: 700;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .summary-label {
+    font-size: 0.68rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .summary-val {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--accent2);
+    font-family: 'Space Mono', monospace;
+  }
+  .graph-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .graph-title {
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+  }
+  .chart-wrap {
+    position: relative;
+    height: 160px;
+  }
+  .chart-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
+
+</style>
+</head>
+<body>
+
+<h1>CALORIE TRACKER</h1>
+<p class="subtitle">食べたものをタップして今日の合計を確認</p>
+
+<!-- タブ -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('tracker')">📋 トラッカー</button>
+  <button class="tab-btn" onclick="switchTab('graph')">📊 グラフ</button>
+</div>
+
+<div id="tab-tracker">
+
+<!-- 目標バー -->
+<div class="target-bar">
+  <div class="target-row">
+    <div>
+      <div class="target-label">今日の合計</div>
+      <div class="target-total" id="totalKcal">0 <span style="font-size:0.8rem;color:var(--muted)">kcal</span></div>
+    </div>
+    <div style="text-align:right;">
+      <div class="target-goal">目標 2,500 kcal</div>
+      <div style="font-size:0.85rem;color:#ffe66d;margin-top:4px;">💰 <span id="totalCost">0</span> 円</div>
+    </div>
+  </div>
+  <div class="progress-bg">
+    <div class="progress-fill" id="progressBar" style="width:0%"></div>
+  </div>
+  <div class="target-status" id="statusText">あと 2,500 kcal</div>
+</div>
+
+<!-- 夜勤中（固定） -->
+<div class="section-title">夜勤中（固定）</div>
+<div class="fixed-card" id="nightCard" onclick="toggleNight()" style="cursor:pointer; transition: border-color 0.15s;">
+  <div class="fixed-row">
+    <div class="food-name" style="font-size:0.85rem;">夜勤中メニュー 全部</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="fixed-kcal">850 kcal</div>
+      <div class="food-check" id="nightCheck" style="width:22px;height:22px;border-radius:50%;border:2px solid #2a3450;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;"></div>
+    </div>
+  </div>
+  <div class="fixed-items">
+    <span class="tag">白ご飯 220g</span>
+    <span class="tag">卵焼き 2個</span>
+    <span class="tag">ウインナー 3本</span>
+    <span class="tag">ブロッコリー</span>
+    <span class="tag">エネルギーゼリー</span>
+  </div>
+</div>
+
+<!-- 主力メニュー（400kcal以上・横並び） -->
+<div class="section-title">主力メニュー</div>
+<div class="main-grid">
+  <div class="main-item" onclick="toggleMain(this)" data-kcal="600" data-cost="200">
+    <div class="food-check"></div>
+    <div class="main-kcal">600</div>
+    <div class="main-name">パスタ<br><span style="font-size:0.68rem;color:var(--muted)">ソース込み目安 / 約¥200</span></div>
+  </div>
+  <div class="main-item" onclick="toggleMain(this)" data-kcal="500" data-cost="490">
+    <div class="food-check"></div>
+    <div class="main-kcal">500</div>
+    <div class="main-name">マクドナルド<br>ラージポテト<br><span style="font-size:0.68rem;color:var(--muted)">¥490</span></div>
+  </div>
+  <div class="main-item" onclick="toggleMain(this)" data-kcal="500" data-cost="200">
+    <div class="food-check"></div>
+    <div class="main-kcal">500</div>
+    <div class="main-name">カップ麺<br><span style="font-size:0.68rem;color:var(--muted)">約¥200</span></div>
+  </div>
+  <div class="main-item" onclick="toggleMain(this)" data-kcal="700" data-cost="460">
+    <div class="food-check"></div>
+    <div class="main-kcal">700</div>
+    <div class="main-name">松屋 牛めし 並盛<br><span style="font-size:0.68rem;color:var(--accent2)">¥460 / 1.5kcal/円</span></div>
+  </div>
+  <div class="main-item" onclick="toggleMain(this)" data-kcal="1000" data-cost="800">
+    <div class="food-check"></div>
+    <div class="main-kcal">1000</div>
+    <div class="main-name">マック セット<br><span style="font-size:0.68rem;color:var(--accent2)">¥800 / 1.38kcal/円</span></div>
+  </div>
+</div>
+
+<!-- その他 -->
+<div class="section-title">その他</div>
+<div class="food-grid">
+  <div class="food-item" id="riceItem" style="flex-wrap:wrap;gap:8px;cursor:default;">
+    <div style="display:flex;align-items:center;gap:12px;width:100%;cursor:pointer;" onclick="toggleRice()">
+      <div class="food-check" id="riceCheck"></div>
+      <div style="flex:1;"><div class="food-name" id="riceName">白ご飯 250g</div><div style="font-size:0.68rem;color:#777;margin-top:1px;">つや姫 5kg¥4,000 / 約0.12円/kcal</div></div>
+      <div class="food-kcal" id="riceKcal">325 kcal</div>
+    </div>
+    <div style="width:100%;display:flex;gap:6px;margin-top:4px;">
+      <button onclick="boostRice()" style="background:#22222e;border:1px solid #3a3a50;border-radius:6px;color:#ffe66d;font-size:0.78rem;padding:5px 0;cursor:pointer;font-family:'Noto Sans JP',sans-serif;flex:1;">＋50g ブースト</button>
+      <button onclick="resetRice()" style="background:#22222e;border:1px solid #3a3a50;border-radius:6px;color:#777;font-size:0.78rem;padding:5px 12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">戻す</button>
+    </div>
+  </div>
+  <div class="food-item option-item" onclick="toggle(this)" data-kcal="80" data-cost="30" style="margin-left:20px; border-left: 2px solid var(--accent3);">
+    <div class="food-check"></div>
+    <div>
+      <div class="food-name">＋ 卵かけご飯</div>
+      <div class="food-sub">卵1個分を追加 / 約¥30</div>
+    </div>
+    <div class="food-kcal">+80 kcal</div>
+  </div>
+  <div class="food-item option-item" onclick="toggle(this)" data-kcal="80" data-cost="50" style="margin-left:20px; border-left: 2px solid var(--accent3);">
+    <div class="food-check"></div>
+    <div>
+      <div class="food-name">＋ 納豆</div>
+      <div class="food-sub">1パック / 約¥50</div>
+    </div>
+    <div class="food-kcal">+80 kcal</div>
+  </div>
+  <div class="food-item" onclick="toggle(this)" data-kcal="350" data-cost="150">
+    <div class="food-check"></div>
+    <div>
+      <div class="food-name">ポテチ 1袋</div>
+      <div class="food-sub">コンソメ系・約60g / 約¥150</div>
+    </div>
+    <div class="food-kcal">350 kcal</div>
+  </div>
+  <div class="food-item" onclick="toggle(this)" data-kcal="220" data-cost="200">
+    <div class="food-check"></div>
+    <div>
+      <div class="food-name">ファミマ ホットスナック</div>
+      <div class="food-sub">フランク・から揚げ棒など / 約¥200</div>
+    </div>
+    <div class="food-kcal">220 kcal</div>
+  </div>
+  <div class="food-item" onclick="toggle(this)" data-kcal="200" data-cost="200">
+    <div class="food-check"></div>
+    <div>
+      <div class="food-name">エネルギーゼリー</div>
+      <div class="food-sub">約¥200</div>
+    </div>
+    <div class="food-kcal">200 kcal</div>
+  </div>
+</div>
+
+
+<!-- その他2 -->
+<div class="section-title">追加メニュー</div>
+<div class="food-grid">
+  <div class="food-item" onclick="toggle(this)" data-kcal="120" data-cost="22">
+    <div class="food-check"></div>
+    <div>
+      <div class="food-name">揚げ玉（天かす）20g</div>
+      <div class="food-sub">麺や飯に足すだけ / 約¥20</div>
+    </div>
+    <div class="food-kcal">120 kcal</div>
+  </div>
+  <div class="food-item" onclick="toggle(this)" data-kcal="550" data-cost="120">
+    <div class="food-check"></div>
+    <div>
+      <div class="food-name">揚げせんべい（歌舞伎揚等）1袋</div>
+      <div class="food-sub">甘辛しょっぱい間食 / 約¥120</div>
+    </div>
+    <div class="food-kcal">550 kcal</div>
+  </div>
+  <div class="food-item" onclick="toggle(this)" data-kcal="240" data-cost="55">
+    <div class="food-check"></div>
+    <div>
+      <div class="food-name">芋けんぴ 50g</div>
+      <div class="food-sub">カリカリ系和菓子枠 / 約¥60</div>
+    </div>
+    <div class="food-kcal">240 kcal</div>
+  </div>
+</div>
+
+<button class="reset-btn" onclick="resetAll()">リセット</button>
+
+<!-- 記録履歴 -->
+<div style="margin:20px 16px 0;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div class="section-title" style="margin:0;padding:0;">記録履歴</div>
+    <button onclick="clearHistory()" style="background:none;border:1px solid #3a3a50;border-radius:6px;color:#666;font-size:0.72rem;padding:4px 10px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">全削除</button>
+  </div>
+  <div id="historyList" style="display:flex;flex-direction:column;gap:8px;"></div>
+  <p id="noHistory" style="color:#555;font-size:0.82rem;text-align:center;padding:16px 0;">まだ記録がありません</p>
+</div>
+
+<p class="note">※カロリーは目安です。食べたものをタップするだけでOK。</p>
+</div><!-- /tab-tracker -->
+
+<!-- グラフタブ -->
+<div id="tab-graph" style="display:none;">
+  <div class="graph-header">
+    <div>
+      <div style="font-size:0.72rem;color:var(--muted);letter-spacing:0.08em;">STATS</div>
+      <div id="graphPeriodLabel" style="font-size:1.1rem;font-weight:700;color:var(--text);">直近の記録</div>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button class="period-btn active" onclick="setPeriod(7)">7日</button>
+      <button class="period-btn" onclick="setPeriod(14)">14日</button>
+      <button class="period-btn" onclick="setPeriod(30)">30日</button>
+    </div>
+  </div>
+
+  <!-- サマリーカード -->
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-label">平均kcal</div>
+      <div class="summary-val" id="avgKcal">—</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">平均費用</div>
+      <div class="summary-val" id="avgCost">—</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">目標達成日</div>
+      <div class="summary-val" id="goalDays">—</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">記録日数</div>
+      <div class="summary-val" id="totalDays">—</div>
+    </div>
+  </div>
+
+  <!-- カロリーグラフ -->
+  <div class="graph-section">
+    <div class="graph-title">カロリー推移</div>
+    <div class="chart-wrap">
+      <canvas id="kcalChart"></canvas>
+      <div id="kcalEmpty" class="chart-empty">記録がありません</div>
+    </div>
+  </div>
+
+  <!-- 費用グラフ -->
+  <div class="graph-section">
+    <div class="graph-title">費用推移</div>
+    <div class="chart-wrap">
+      <canvas id="costChart"></canvas>
+      <div id="costEmpty" class="chart-empty">記録がありません</div>
+    </div>
+  </div>
+
+  <!-- 週別ヒートマップ -->
+  <div class="graph-section">
+    <div class="graph-title">達成率カレンダー</div>
+    <div id="heatmap" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:0.7rem;color:var(--muted);">
+      <div style="display:flex;align-items:center;gap:4px;"><div style="width:12px;height:12px;border-radius:3px;background:#1a1f2e;border:1px solid #2a3450;"></div>記録なし</div>
+      <div style="display:flex;align-items:center;gap:4px;"><div style="width:12px;height:12px;border-radius:3px;background:#ff6b6b;"></div>〜1999</div>
+      <div style="display:flex;align-items:center;gap:4px;"><div style="width:12px;height:12px;border-radius:3px;background:#ffe66d;"></div>2000〜</div>
+      <div style="display:flex;align-items:center;gap:4px;"><div style="width:12px;height:12px;border-radius:3px;background:#4ecdc4;"></div>達成</div>
+    </div>
+  </div>
+</div><!-- /tab-graph -->
+
+<script>
+  let riceSelected = false;
+  let riceGrams = 250;
+  const BASE_RICE_G = 250;
+  const BASE_RICE_KCAL = 325;
+
+  function toggleRice() {
+    riceSelected = !riceSelected;
+    const item = document.getElementById('riceItem');
+    const check = document.getElementById('riceCheck');
+    if (riceSelected) {
+      item.style.borderColor = '#4ecdc4';
+      item.style.background = '#1a2a28';
+      check.style.background = '#4ecdc4';
+      check.style.borderColor = '#4ecdc4';
+    } else {
+      item.style.borderColor = '';
+      item.style.background = '';
+      check.style.background = '';
+      check.style.borderColor = '';
+    }
+    updateTotal();
+  }
+
+  function boostRice() {
+    riceGrams += 50;
+    updateRiceDisplay();
+    if (!riceSelected) {
+      riceSelected = true;
+      const item = document.getElementById('riceItem');
+      const check = document.getElementById('riceCheck');
+      item.style.borderColor = '#4ecdc4';
+      item.style.background = '#1a2a28';
+      check.style.background = '#4ecdc4';
+      check.style.borderColor = '#4ecdc4';
+    }
+    updateTotal();
+  }
+
+  function resetRice() {
+    riceGrams = BASE_RICE_G;
+    updateRiceDisplay();
+    updateTotal();
+  }
+
+  function updateRiceDisplay() {
+    const kcal = Math.round(BASE_RICE_KCAL * riceGrams / BASE_RICE_G);
+    document.getElementById('riceName').textContent = '白ご飯 ' + riceGrams + 'g';
+    document.getElementById('riceKcal').textContent = kcal + ' kcal';
+  }
+
+  function getRiceKcal() {
+    if (!riceSelected) return 0;
+    return Math.round(BASE_RICE_KCAL * riceGrams / BASE_RICE_G);
+  }
+
+  function getRiceCost() {
+    if (!riceSelected) return 0;
+    return Math.round(getRiceKcal() * 0.12);
+  }
+
+  let nightSelected = false;
+  const NIGHT_KCAL = 850;
+
+  function toggleNight() {
+    nightSelected = !nightSelected;
+    const card = document.getElementById('nightCard');
+    const check = document.getElementById('nightCheck');
+    if (nightSelected) {
+      card.style.borderColor = '#4ecdc4';
+      card.style.background = '#1a2a28';
+      check.style.background = '#4ecdc4';
+      check.style.borderColor = '#4ecdc4';
+    } else {
+      card.style.borderColor = '#2a3450';
+      card.style.background = '#1a1f2e';
+      check.style.background = '';
+      check.style.borderColor = '#2a3450';
+    }
+    updateTotal();
+  }
+
+  function toggle(el) {
+    el.classList.toggle('selected');
+    updateTotal();
+  }
+
+  function toggleMain(el) {
+    el.classList.toggle('selected');
+    updateTotal();
+  }
+
+  function updateTotal() {
+    let total = nightSelected ? NIGHT_KCAL : 0;
+    let totalCost = nightSelected ? 800 : 0; // 夜勤中メニュー概算
+    total += getRiceKcal();
+    totalCost += getRiceCost();
+    document.querySelectorAll('.food-item.selected, .main-item.selected').forEach(el => {
+      total += parseInt(el.dataset.kcal);
+      totalCost += parseInt(el.dataset.cost || 0);
+    });
+    document.getElementById('totalKcal').innerHTML = total.toLocaleString() + ' <span style="font-size:0.8rem;color:var(--muted)">kcal</span>';
+    document.getElementById('totalCost').textContent = totalCost.toLocaleString();
+    const pct = Math.min((total / 2500) * 100, 100);
+    const bar = document.getElementById('progressBar');
+    bar.style.width = pct + '%';
+    if (total >= 2500) {
+      bar.classList.add('over');
+    } else {
+      bar.classList.remove('over');
+    }
+    const diff = 2500 - total;
+    const status = document.getElementById('statusText');
+    if (diff > 0) {
+      status.textContent = 'あと ' + diff.toLocaleString() + ' kcal';
+      status.style.color = 'var(--muted)';
+    } else {
+      status.textContent = '目標達成！ +' + Math.abs(diff).toLocaleString() + ' kcal';
+      status.style.color = 'var(--accent2)';
+    }
+    saveDay(total, totalCost);
+  }
+
+  function resetAll() {
+    riceGrams = BASE_RICE_G; riceSelected = false; updateRiceDisplay();
+    const ri = document.getElementById('riceItem'); const rc = document.getElementById('riceCheck');
+    ri.style.borderColor=''; ri.style.background=''; rc.style.background=''; rc.style.borderColor='';
+    nightSelected = false;
+    const card = document.getElementById('nightCard');
+    const check = document.getElementById('nightCheck');
+    card.style.borderColor = '#2a3450';
+    card.style.background = '#1a1f2e';
+    check.style.background = '';
+    check.style.borderColor = '#2a3450';
+    document.querySelectorAll('.food-item.selected, .main-item.selected').forEach(el => el.classList.remove('selected'));
+    updateTotal();
+  }
+
+  // ---- 記録機能 ----
+  function saveDay(total, totalCost) {
+    if (total === 0) return;
+    const today = new Date();
+    const dateKey = today.toISOString().slice(0, 10);
+    const dateLabel = today.toLocaleDateString('ja-JP', {month:'numeric', day:'numeric', weekday:'short'});
+    const records = JSON.parse(localStorage.getItem('kcal_records') || '{}');
+    records[dateKey] = { label: dateLabel, kcal: total, cost: totalCost };
+    localStorage.setItem('kcal_records', JSON.stringify(records));
+    renderHistory();
+  }
+
+  function deleteRecord(dateKey) {
+    const records = JSON.parse(localStorage.getItem('kcal_records') || '{}');
+    delete records[dateKey];
+    localStorage.setItem('kcal_records', JSON.stringify(records));
+    renderHistory();
+  }
+
+  function clearHistory() {
+    if (!confirm('全ての記録を削除しますか？')) return;
+    localStorage.removeItem('kcal_records');
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const records = JSON.parse(localStorage.getItem('kcal_records') || '{}');
+    const keys = Object.keys(records).sort().reverse();
+    const list = document.getElementById('historyList');
+    const noHistory = document.getElementById('noHistory');
+
+    if (keys.length === 0) {
+      list.innerHTML = '';
+      noHistory.style.display = 'block';
+      return;
+    }
+    noHistory.style.display = 'none';
+
+    list.innerHTML = keys.map(k => {
+      const r = records[k];
+      const pct = Math.min(Math.round((r.kcal / 2500) * 100), 100);
+      const color = r.kcal >= 2500 ? '#4ecdc4' : r.kcal >= 2000 ? '#ffe66d' : '#ff6b6b';
+      return `<div style="background:#1a1f2e;border:1px solid #2a3450;border-radius:12px;padding:12px 14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:0.85rem;color:#aaa;">${r.label}</div>
+          <button onclick="deleteRecord('${k}')" style="background:none;border:none;color:#444;font-size:0.78rem;cursor:pointer;padding:0;">✕</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:4px;">
+          <div style="font-size:1.3rem;font-weight:700;color:${color};">${r.kcal.toLocaleString()} <span style="font-size:0.75rem;color:#777;">kcal</span></div>
+          <div style="font-size:0.85rem;color:#ffe66d;">💰 ¥${r.cost.toLocaleString()}</div>
+        </div>
+        <div style="margin-top:8px;background:#0d1117;border-radius:4px;height:6px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width 0.4s;"></div>
+        </div>
+        <div style="font-size:0.7rem;color:#555;margin-top:4px;">目標2500kcalの${pct}%</div>
+      </div>`;
+    }).join('');
+  }
+
+  // 起動時に履歴を表示
+  renderHistory();
+
+
+  // ---- タブ切り替え ----
+  function switchTab(tab) {
+    document.getElementById('tab-tracker').style.display = tab === 'tracker' ? 'block' : 'none';
+    document.getElementById('tab-graph').style.display = tab === 'graph' ? 'block' : 'none';
+    document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', (i === 0 && tab === 'tracker') || (i === 1 && tab === 'graph'));
+    });
+    if (tab === 'graph') renderGraph();
+  }
+
+  // ---- グラフ ----
+  let currentPeriod = 7;
+  let kcalChartInstance = null;
+  let costChartInstance = null;
+
+  function setPeriod(days) {
+    currentPeriod = days;
+    document.querySelectorAll('.period-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', [7,14,30][i] === days);
+    });
+    renderGraph();
+  }
+
+  function renderGraph() {
+    const records = JSON.parse(localStorage.getItem('kcal_records') || '{}');
+    const now = new Date();
+    const labels = [], kcals = [], costs = [];
+
+    for (let i = currentPeriod - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const label = (d.getMonth()+1) + '/' + d.getDate();
+      labels.push(label);
+      kcals.push(records[key] ? records[key].kcal : null);
+      costs.push(records[key] ? records[key].cost : null);
+    }
+
+    const hasData = kcals.some(v => v !== null);
+
+    // サマリー
+    const validKcal = kcals.filter(v => v !== null);
+    const validCost = costs.filter(v => v !== null);
+    document.getElementById('avgKcal').textContent = validKcal.length ? Math.round(validKcal.reduce((a,b)=>a+b,0)/validKcal.length).toLocaleString() + ' kcal' : '—';
+    document.getElementById('avgCost').textContent = validCost.length ? '¥' + Math.round(validCost.reduce((a,b)=>a+b,0)/validCost.length).toLocaleString() : '—';
+    document.getElementById('goalDays').textContent = validKcal.filter(v=>v>=2500).length + ' 日';
+    document.getElementById('totalDays').textContent = validKcal.length + ' 日';
+
+    // kcalグラフ
+    document.getElementById('kcalEmpty').style.display = hasData ? 'none' : 'flex';
+    if (hasData) drawChart('kcalChart', labels, kcals, '#4ecdc4', 'kcal', 2500, 'kcalChartInstance');
+    
+    // costグラフ
+    document.getElementById('costEmpty').style.display = hasData ? 'none' : 'flex';
+    if (hasData) drawChart('costChart', labels, costs, '#ffe66d', '円', null, 'costChartInstance');
+
+    // ヒートマップ
+    renderHeatmap(records);
+  }
+
+  function drawChart(canvasId, labels, data, color, unit, targetVal, instanceKey) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth * devicePixelRatio;
+    canvas.height = canvas.offsetHeight * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+    const w = canvas.offsetWidth, h = canvas.offsetHeight;
+    const pad = { top: 10, right: 10, bottom: 28, left: 46 };
+    const cw = w - pad.left - pad.right;
+    const ch = h - pad.top - pad.bottom;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const validVals = data.filter(v => v !== null);
+    if (!validVals.length) return;
+    const maxVal = Math.max(...validVals, targetVal || 0) * 1.1;
+    const n = data.length;
+    const stepX = cw / (n - 1 || 1);
+
+    // グリッド
+    ctx.strokeStyle = '#2a3450';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.top + ch - (ch * i / 4);
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+      ctx.fillStyle = '#555';
+      ctx.font = '10px Space Mono, monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(Math.round(maxVal * i / 4).toLocaleString(), pad.left - 4, y + 3);
+    }
+
+    // 目標ライン
+    if (targetVal) {
+      const ty = pad.top + ch - (ch * targetVal / maxVal);
+      ctx.strokeStyle = '#ff6b6b44';
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(pad.left, ty); ctx.lineTo(pad.left + cw, ty); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ff6b6b88';
+      ctx.font = '9px Space Mono, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('目標', pad.left + 2, ty - 3);
+    }
+
+    // 折れ線グラデ塗り
+    const points = data.map((v, i) => ({
+      x: pad.left + i * stepX,
+      y: v !== null ? pad.top + ch - (ch * v / maxVal) : null
+    }));
+    
+    ctx.beginPath();
+    let first = true;
+    points.forEach(p => {
+      if (p.y === null) return;
+      if (first) { ctx.moveTo(p.x, p.y); first = false; }
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.lineTo(points.filter(p=>p.y!==null).slice(-1)[0].x, pad.top + ch);
+    ctx.lineTo(points.filter(p=>p.y!==null)[0].x, pad.top + ch);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+    grad.addColorStop(0, color + '44');
+    grad.addColorStop(1, color + '00');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // 折れ線
+    ctx.beginPath();
+    first = true;
+    points.forEach(p => {
+      if (p.y === null) return;
+      if (first) { ctx.moveTo(p.x, p.y); first = false; }
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // ドット
+    points.forEach(p => {
+      if (p.y === null) return;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    });
+
+    // X軸ラベル（間引き）
+    ctx.fillStyle = '#555';
+    ctx.font = '9px Noto Sans JP, sans-serif';
+    ctx.textAlign = 'center';
+    const step = n <= 7 ? 1 : n <= 14 ? 2 : 5;
+    labels.forEach((l, i) => {
+      if (i % step === 0 || i === n - 1) {
+        ctx.fillText(l, pad.left + i * stepX, pad.top + ch + 18);
+      }
+    });
+  }
+
+  function renderHeatmap(records) {
+    const heatmap = document.getElementById('heatmap');
+    heatmap.innerHTML = '';
+    const now = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const r = records[key];
+      let bg = '#1a1f2e', border = '#2a3450';
+      if (r) {
+        if (r.kcal >= 2500) { bg = '#4ecdc4'; border = '#4ecdc4'; }
+        else if (r.kcal >= 2000) { bg = '#ffe66d'; border = '#ffe66d'; }
+        else { bg = '#ff6b6b'; border = '#ff6b6b'; }
+      }
+      const label = (d.getMonth()+1) + '/' + d.getDate();
+      const cell = document.createElement('div');
+      cell.title = r ? `${label}: ${r.kcal}kcal` : label;
+      cell.style.cssText = `width:28px;height:28px;border-radius:5px;background:${bg};border:1px solid ${border};cursor:default;`;
+      heatmap.appendChild(cell);
+    }
+  }
+
+</script>
+</body>
+</html>
