@@ -39,7 +39,17 @@
     margin-bottom: 4px;
   }
 
-  .subtitle { color: var(--muted); font-size: 0.75rem; margin-bottom: 20px; }
+  .subtitle { color: var(--muted); font-size: 0.75rem; margin-bottom: 12px; }
+
+  .today-date {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--accent2);
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.02em;
+  }
 
   /* 目標バー */
   .target-bar {
@@ -461,6 +471,7 @@
 
 <h1>CALORIE TRACKER</h1>
 <p class="subtitle">食べたものをタップして今日の合計を確認</p>
+<div id="todayDate" class="today-date"></div>
 
 <!-- タブ -->
 <div class="tab-bar">
@@ -740,6 +751,11 @@
 
   function toggleRice() {
     riceSelected = !riceSelected;
+    updateRiceVisual();
+    updateTotal();
+  }
+
+  function updateRiceVisual() {
     const item = document.getElementById('riceItem');
     const check = document.getElementById('riceCheck');
     if (riceSelected) {
@@ -753,7 +769,6 @@
       check.style.background = '';
       check.style.borderColor = '';
     }
-    updateTotal();
   }
 
   function boostRice() {
@@ -761,12 +776,7 @@
     updateRiceDisplay();
     if (!riceSelected) {
       riceSelected = true;
-      const item = document.getElementById('riceItem');
-      const check = document.getElementById('riceCheck');
-      item.style.borderColor = '#4ecdc4';
-      item.style.background = '#1a2a28';
-      check.style.background = '#4ecdc4';
-      check.style.borderColor = '#4ecdc4';
+      updateRiceVisual();
     }
     updateTotal();
   }
@@ -798,6 +808,11 @@
 
   function toggleNight() {
     nightSelected = (nightSelected + 1) % 3; // 0→1→2→0
+    updateNightVisual();
+    updateTotal();
+  }
+
+  function updateNightVisual() {
     const card = document.getElementById('nightCard');
     const check = document.getElementById('nightCheck');
     const countEl = document.getElementById('nightCount');
@@ -823,7 +838,6 @@
       check.innerHTML = '';
       countEl.textContent = '×2';
     }
-    updateTotal();
   }
 
   function setItemCount(el, count) {
@@ -891,6 +905,7 @@
       status.style.color = 'var(--accent2)';
     }
     saveDay(total, totalCost);
+    saveState();
   }
 
   function resetAll() {
@@ -973,8 +988,77 @@
     }).join('');
   }
 
-  // 起動時に履歴を表示
+  // ---- 日付表示・状態保存・深夜リセット ----
+  function getTodayKey() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function updateDateDisplay() {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('ja-JP', {
+      year: 'numeric', month: 'long', day: 'numeric', weekday: 'short'
+    });
+    document.getElementById('todayDate').textContent = dateStr;
+  }
+
+  function saveState() {
+    const items = [];
+    document.querySelectorAll('.food-item, .main-item').forEach(el => {
+      items.push(parseInt(el.dataset.count || 0));
+    });
+    const state = {
+      date: getTodayKey(),
+      night: nightSelected,
+      rice: { selected: riceSelected, grams: riceGrams },
+      items: items
+    };
+    localStorage.setItem('kcal_daily_state', JSON.stringify(state));
+  }
+
+  function restoreState() {
+    const raw = localStorage.getItem('kcal_daily_state');
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    if (state.date !== getTodayKey()) {
+      localStorage.removeItem('kcal_daily_state');
+      return;
+    }
+    // 夜勤弁当を復元
+    nightSelected = state.night;
+    updateNightVisual();
+    // ご飯を復元
+    riceSelected = state.rice.selected;
+    riceGrams = state.rice.grams;
+    updateRiceDisplay();
+    updateRiceVisual();
+    // 各アイテムを復元
+    const els = document.querySelectorAll('.food-item, .main-item');
+    state.items.forEach((count, i) => {
+      if (i < els.length && count > 0) {
+        setItemCount(els[i], count);
+      }
+    });
+    updateTotal();
+  }
+
+  function scheduleMidnightReset() {
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    const msUntilMidnight = midnight - now;
+    setTimeout(() => {
+      resetAll();
+      localStorage.removeItem('kcal_daily_state');
+      updateDateDisplay();
+      scheduleMidnightReset();
+    }, msUntilMidnight);
+  }
+
+  // 起動時に履歴を表示・状態復元・日付表示・深夜リセット予約
   renderHistory();
+  updateDateDisplay();
+  restoreState();
+  scheduleMidnightReset();
 
 
   // ---- タブ切り替え ----
