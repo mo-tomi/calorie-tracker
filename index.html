@@ -400,6 +400,8 @@
     border-radius: 12px;
     padding: 14px;
     margin-bottom: 14px;
+    overflow: hidden;
+    min-width: 0;
   }
   .graph-title {
     font-size: 0.75rem;
@@ -410,6 +412,12 @@
   .chart-wrap {
     position: relative;
     height: 160px;
+    overflow: hidden;
+  }
+  .chart-wrap canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
   .chart-empty {
     position: absolute;
@@ -733,7 +741,7 @@
   <!-- 週別ヒートマップ -->
   <div class="graph-section">
     <div class="graph-title">達成率カレンダー</div>
-    <div id="heatmap" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;"></div>
+    <div id="heatmap" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:10px;"></div>
     <div style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:0.7rem;color:var(--muted);">
       <div style="display:flex;align-items:center;gap:4px;"><div style="width:12px;height:12px;border-radius:3px;background:#1a1f2e;border:1px solid #2a3450;"></div>記録なし</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="width:12px;height:12px;border-radius:3px;background:#ff6b6b;"></div>〜1999</div>
@@ -1223,6 +1231,10 @@
   function renderHeatmap(records) {
     const heatmap = document.getElementById('heatmap');
     heatmap.innerHTML = '';
+    const gap = 4;
+    const cols = 10;
+    const containerW = heatmap.offsetWidth || heatmap.parentElement.offsetWidth;
+    const cellSize = Math.floor((containerW - gap * (cols - 1)) / cols);
     const now = new Date();
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now);
@@ -1238,7 +1250,7 @@
       const label = (d.getMonth()+1) + '/' + d.getDate();
       const cell = document.createElement('div');
       cell.title = r ? `${label}: ${r.kcal}kcal` : label;
-      cell.style.cssText = `width:28px;height:28px;border-radius:5px;background:${bg};border:1px solid ${border};cursor:default;`;
+      cell.style.cssText = `width:${cellSize}px;height:${cellSize}px;border-radius:5px;background:${bg};border:1px solid ${border};cursor:default;`;
       heatmap.appendChild(cell);
     }
   }
