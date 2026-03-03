@@ -447,6 +447,83 @@
   .main-item { position: relative; }
   .food-item { position: relative; }
 
+  /* カスタム食品入力 */
+  .custom-input-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .custom-input-row input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.85rem;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .custom-input-row input:focus {
+    border-color: var(--accent2);
+  }
+  .custom-input-row input[type="text"] { flex: 1; }
+  .custom-input-row input[type="number"] { width: 90px; text-align: right; font-family: 'Space Mono', monospace; }
+  .custom-add-btn {
+    background: var(--accent2);
+    border: none;
+    border-radius: 8px;
+    color: #0f0f13;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+  }
+  .custom-add-btn:active { opacity: 0.7; }
+  .custom-food-item {
+    background: var(--surface);
+    border: 1px solid var(--accent2);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #1a2a28;
+  }
+  .custom-food-item .food-name { flex: 1; font-size: 0.9rem; }
+  .custom-food-item .food-kcal {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--accent3);
+    white-space: nowrap;
+  }
+  .custom-remove-btn {
+    background: none;
+    border: none;
+    color: #ff6b6b;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+  }
+
+  /* 履歴編集ボタン */
+  .history-edit-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 0.78rem;
+    cursor: pointer;
+    padding: 0;
+    margin-right: 8px;
+    transition: color 0.15s;
+  }
+  .history-edit-btn:active { color: var(--accent2); }
+
   /* 外食バッジ */
   .main-item[data-eating-out="true"] {
     border-color: #ff6b35;
@@ -671,6 +748,15 @@
   </div>
 </div>
 
+<!-- カスタム食品 -->
+<div class="section-title">カスタム食品</div>
+<div class="custom-input-row">
+  <input type="text" id="customName" placeholder="食品名" />
+  <input type="number" id="customKcal" placeholder="kcal" min="0" />
+  <button class="custom-add-btn" onclick="addCustomFood()">追加</button>
+</div>
+<div id="customFoodList" class="food-grid"></div>
+
 <button class="reset-btn" onclick="resetAll()">リセット</button>
 
 <!-- 記録履歴 -->
@@ -752,6 +838,48 @@
 </div><!-- /tab-graph -->
 
 <script>
+  // ---- カスタム食品 ----
+  let customFoods = []; // [{name, kcal}]
+
+  function addCustomFood() {
+    const nameEl = document.getElementById('customName');
+    const kcalEl = document.getElementById('customKcal');
+    const name = nameEl.value.trim();
+    const kcal = parseInt(kcalEl.value);
+    if (!name) { nameEl.focus(); return; }
+    if (!kcal || kcal <= 0) { kcalEl.focus(); return; }
+    customFoods.push({ name, kcal });
+    nameEl.value = '';
+    kcalEl.value = '';
+    renderCustomFoods();
+    updateTotal();
+  }
+
+  function removeCustomFood(index) {
+    customFoods.splice(index, 1);
+    renderCustomFoods();
+    updateTotal();
+  }
+
+  function renderCustomFoods() {
+    const list = document.getElementById('customFoodList');
+    if (customFoods.length === 0) {
+      list.innerHTML = '';
+      return;
+    }
+    list.innerHTML = customFoods.map((f, i) =>
+      `<div class="custom-food-item">
+        <div class="food-name">${f.name}</div>
+        <div class="food-kcal">${f.kcal} kcal</div>
+        <button class="custom-remove-btn" onclick="removeCustomFood(${i})">✕</button>
+      </div>`
+    ).join('');
+  }
+
+  function getCustomFoodsKcal() {
+    return customFoods.reduce((sum, f) => sum + f.kcal, 0);
+  }
+
   let riceSelected = false;
   let riceGrams = 250;
   const BASE_RICE_G = 250;
@@ -886,6 +1014,7 @@
     let totalCost = nightSelected * 500;
     total += getRiceKcal();
     totalCost += getRiceCost();
+    total += getCustomFoodsKcal();
     document.querySelectorAll('.food-item, .main-item').forEach(el => {
       const cnt = parseInt(el.dataset.count || 0);
       if (cnt > 0) {
@@ -917,6 +1046,8 @@
   }
 
   function resetAll() {
+    customFoods = [];
+    renderCustomFoods();
     riceGrams = BASE_RICE_G; riceSelected = false; updateRiceDisplay();
     const ri = document.getElementById('riceItem'); const rc = document.getElementById('riceCheck');
     ri.style.borderColor=''; ri.style.background=''; rc.style.background=''; rc.style.borderColor='';
@@ -947,6 +1078,20 @@
     records[dateKey] = { label: dateLabel, kcal: total, cost: totalCost };
     localStorage.setItem('kcal_records', JSON.stringify(records));
     renderHistory();
+  }
+
+  function editRecord(dateKey) {
+    const records = JSON.parse(localStorage.getItem('kcal_records') || '{}');
+    const r = records[dateKey];
+    if (!r) return;
+    const newKcal = prompt('カロリーを入力してください', r.kcal);
+    if (newKcal === null) return;
+    const parsed = parseInt(newKcal);
+    if (isNaN(parsed) || parsed < 0) return;
+    records[dateKey].kcal = parsed;
+    localStorage.setItem('kcal_records', JSON.stringify(records));
+    renderHistory();
+    if (document.getElementById('tab-graph').style.display !== 'none') renderGraph();
   }
 
   function deleteRecord(dateKey) {
@@ -982,7 +1127,10 @@
       return `<div style="background:#1a1f2e;border:1px solid #2a3450;border-radius:12px;padding:12px 14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div style="font-size:0.85rem;color:#aaa;">${r.label}</div>
-          <button onclick="deleteRecord('${k}')" style="background:none;border:none;color:#444;font-size:0.78rem;cursor:pointer;padding:0;">✕</button>
+          <div>
+            <button class="history-edit-btn" onclick="editRecord('${k}')">編集</button>
+            <button onclick="deleteRecord('${k}')" style="background:none;border:none;color:#444;font-size:0.78rem;cursor:pointer;padding:0;">✕</button>
+          </div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:4px;">
           <div style="font-size:1.3rem;font-weight:700;color:${color};">${r.kcal.toLocaleString()} <span style="font-size:0.75rem;color:#777;">kcal</span></div>
@@ -1018,7 +1166,8 @@
       date: getTodayKey(),
       night: nightSelected,
       rice: { selected: riceSelected, grams: riceGrams },
-      items: items
+      items: items,
+      customFoods: customFoods
     };
     localStorage.setItem('kcal_daily_state', JSON.stringify(state));
   }
@@ -1039,6 +1188,11 @@
     riceGrams = state.rice.grams;
     updateRiceDisplay();
     updateRiceVisual();
+    // カスタム食品を復元
+    if (state.customFoods && state.customFoods.length > 0) {
+      customFoods = state.customFoods;
+      renderCustomFoods();
+    }
     // 各アイテムを復元
     const els = document.querySelectorAll('.food-item, .main-item');
     state.items.forEach((count, i) => {
@@ -1055,6 +1209,8 @@
     midnight.setHours(24, 0, 0, 0);
     const msUntilMidnight = midnight - now;
     setTimeout(() => {
+      customFoods = [];
+      renderCustomFoods();
       resetAll();
       localStorage.removeItem('kcal_daily_state');
       updateDateDisplay();
